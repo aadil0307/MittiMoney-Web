@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to validate required fields
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+      
+      // Users can create their own profile
+      allow create: if isAuthenticated() 
+                    && request.auth.uid == userId
+                    && hasRequiredFields(['uid', 'phoneNumber', 'preferredLanguage']);
+      
+      // Users can update their own profile
+      allow update: if isOwner(userId);
+      
+      // No one can delete user documents (use Firebase Auth for account deletion)
+      allow delete: if false;
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      // Users can read their own transactions
+      allow read: if isAuthenticated() 
+                  && resource.data.userId == request.auth.uid;
+      
+      // Users can create transactions for themselves
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && hasRequiredFields(['userId', 'amount', 'type', 'category', 'timestamp']);
+      
+      // Users can update their own transactions
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+      
+      // Users can delete their own transactions
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+    
+    // Debts collection
+    match /debts/{debtId} {
+      // Users can read their own debts
+      allow read: if isAuthenticated()
+                  && resource.data.userId == request.auth.uid;
+      
+      // Users can create debts for themselves
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && hasRequiredFields(['userId', 'name', 'totalAmount', 'remainingAmount']);
+      
+      // Users can update their own debts
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == resource.data.userId; // Prevent userId change
+      
+      // Users can delete their own debts
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+    
+    // Savings Jars collection
+    match /savings_jars/{jarId} {
+      // Users can read their own savings jars
+      allow read: if isAuthenticated()
+                  && resource.data.userId == request.auth.uid;
+      
+      // Users can create savings jars for themselves
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && hasRequiredFields(['userId', 'name', 'targetAmount', 'currentAmount']);
+      
+      // Users can update their own savings jars
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == resource.data.userId; // Prevent userId change
+      
+      // Users can delete their own savings jars
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+    
+    // Chit Funds collection (blockchain-backed)
+    match /chit_funds/{chitId} {
+      // Anyone can read chit fund details
+      allow read: if isAuthenticated();
+      
+      // Only allow creation with specific structure
+      allow create: if isAuthenticated()
+                    && hasRequiredFields(['contractAddress', 'totalSlots', 'contributionAmount', 'frequency']);
+      
+      // Participants can be added by existing members
+      allow update: if isAuthenticated();
+      
+      // No deletion of chit funds (immutable after creation)
+      allow delete: if false;
+    }
+    
+    // Nudges collection (system-generated)
+    match /nudges/{nudgeId} {
+      // Users can read nudges directed to them
+      allow read: if isAuthenticated()
+                  && resource.data.userId == request.auth.uid;
+      
+      // Only server can create nudges (use Cloud Functions)
+      allow create: if false;
+      
+      // Users can mark nudges as read
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      
+      // Users can delete their own nudges
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+    
+    // Deny all other reads/writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* MittiMoney Earthy Theme - Light Mode */
+  --background: #f5f5dc; /* Beige for overall background */
+  --foreground: #2d1b14; /* Dark brown for text */
+  --card: #ffffff; /* White for cards */
+  --card-foreground: #2d1b14; /* Dark brown text on cards */
+  --popover: #ffffff; /* White for popovers */
+  --popover-foreground: #2d1b14; /* Dark brown text for popovers */
+  --primary: #d26a4c; /* Terracotta for primary actions */
+  --primary-foreground: #ffffff; /* White text on primary buttons */
+  --secondary: #a8cbb7; /* Muted Green for secondary actions */
+  --secondary-foreground: #2d1b14; /* Dark brown text for secondary buttons */
+  --muted: #f0ede8; /* Light beige for muted elements */
+  --muted-foreground: #6b5b4f; /* Medium brown for muted text */
+  --accent: #ffc107; /* Marigold Yellow for highlights */
+  --accent-foreground: #2d1b14; /* Dark brown text for accent elements */
+  --destructive: #ea580c; /* Orange for destructive actions */
+  --destructive-foreground: #ffffff; /* White text for destructive buttons */
+  --border: #e5ddd5; /* Light brown for borders */
+  --input: #ffffff; /* White for input fields */
+  --ring: #ffc107; /* Marigold Yellow for focus rings */
+  --chart-1: #a8cbb7; /* Muted Green for charts */
+  --chart-2: #d26a4c; /* Terracotta for charts */
+  --chart-3: #ffc107; /* Marigold Yellow for charts */
+  --chart-4: #f5f5dc; /* Beige for chart backgrounds */
+  --chart-5: #ea580c; /* Orange for charts */
+  --radius: 0.75rem; /* Rounded corners for a softer feel */
+  --sidebar: #f5f5dc; /* Beige for sidebar background */
+  --sidebar-foreground: #2d1b14; /* Dark brown text for sidebar */
+  --sidebar-primary: #d26a4c; /* Terracotta for primary sidebar elements */
+  --sidebar-primary-foreground: #ffffff; /* White text for primary elements */
+  --sidebar-accent: #ffc107; /* Marigold Yellow for accent sidebar elements */
+  --sidebar-accent-foreground: #2d1b14; /* Dark brown text for accent elements */
+  --sidebar-border: #e5ddd5; /* Light brown for sidebar borders */
+  --sidebar-ring: #ffc107; /* Marigold Yellow for sidebar focus rings */
+}
+
+.dark {
+  /* MittiMoney Earthy Theme - Dark Mode */
+  --background: #2d1b14; /* Dark brown background */
+  --foreground: #f5f5dc; /* Beige text */
+  --card: #3d2b1e; /* Darker brown for cards */
+  --card-foreground: #f5f5dc; /* Beige text on cards */
+  --popover: #3d2b1e; /* Darker brown for popovers */
+  --popover-foreground: #f5f5dc; /* Beige text for popovers */
+  --primary: #d26a4c; /* Terracotta for primary actions */
+  --primary-foreground: #ffffff; /* White text on primary buttons */
+  --secondary: #a8cbb7; /* Muted Green for secondary actions */
+  --secondary-foreground: #2d1b14; /* Dark brown text for secondary buttons */
+  --muted: #4a3529; /* Dark muted brown */
+  --muted-foreground: #b8a898; /* Light brown for muted text */
+  --accent: #ffc107; /* Marigold Yellow for highlights */
+  --accent-foreground: #2d1b14; /* Dark brown text for accent elements */
+  --destructive: #ea580c; /* Orange for destructive actions */
+  --destructive-foreground: #ffffff; /* White text for destructive buttons */
+  --border: #4a3529; /* Dark brown for borders */
+  --input: #3d2b1e; /* Darker brown for input fields */
+  --ring: #ffc107; /* Marigold Yellow for focus rings */
+  --chart-1: #a8cbb7; /* Muted Green for charts */
+  --chart-2: #d26a4c; /* Terracotta for charts */
+  --chart-3: #ffc107; /* Marigold Yellow for charts */
+  --chart-4: #2d1b14; /* Dark brown for chart backgrounds */
+  --chart-5: #ea580c; /* Orange for charts */
+  --sidebar: #2d1b14; /* Dark brown for sidebar background */
+  --sidebar-foreground: #f5f5dc; /* Beige text for sidebar */
+  --sidebar-primary: #d26a4c; /* Terracotta for primary sidebar elements */
+  --sidebar-primary-foreground: #ffffff; /* White text for primary elements */
+  --sidebar-accent: #ffc107; /* Marigold Yellow for accent sidebar elements */
+  --sidebar-accent-foreground: #2d1b14; /* Dark brown text for accent elements */
+  --sidebar-border: #4a3529; /* Dark brown for sidebar borders */
+  --sidebar-ring: #ffc107; /* Marigold Yellow for sidebar focus rings */
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Custom scrollbar for earthy theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--muted);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+  }
+}
+
+/* Custom animations for MittiMoney */
+@keyframes jar-fill {
+  from {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+}
+
+@keyframes branch-heal {
+  from {
+    opacity: 0.3;
+    transform: scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes coin-drop {
+  0% {
+    transform: translateY(-20px) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+.jar-fill {
+  animation: jar-fill 0.8s ease-out;
+}
+
+.branch-heal {
+  animation: branch-heal 0.6s ease-in-out;
+}
+
+.coin-drop {
+  animation: coin-drop 0.5s ease-out;
+}
