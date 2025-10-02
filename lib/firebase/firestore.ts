@@ -533,3 +533,190 @@ export async function syncToFirestore(
     throw error;
   }
 }
+
+/**
+ * Financial Goals Operations
+ */
+
+export interface FinancialGoal {
+  id?: string;
+  userId: string;
+  title: string;
+  description: string;
+  targetAmount: number;
+  currentAmount: number;
+  category: string;
+  priority: 'low' | 'medium' | 'high';
+  targetDate: Date;
+  createdDate: Date;
+  isCompleted: boolean;
+  monthlyContribution?: number;
+  autoContribute?: boolean;
+  milestones?: Array<{
+    id: string;
+    title: string;
+    targetAmount: number;
+    isCompleted: boolean;
+    completedDate?: Date;
+  }>;
+}
+
+export async function createGoal(goal: Omit<FinancialGoal, 'id'>): Promise<string> {
+  return createDocument(COLLECTIONS.GOALS, goal);
+}
+
+export async function getGoal(goalId: string): Promise<FinancialGoal | null> {
+  return getDocument<FinancialGoal>(COLLECTIONS.GOALS, goalId);
+}
+
+export async function getGoalsByUser(userId: string): Promise<FinancialGoal[]> {
+  return queryDocuments<FinancialGoal>(COLLECTIONS.GOALS, [
+    where('userId', '==', userId),
+    orderBy('createdDate', 'desc'),
+  ]);
+}
+
+export async function updateGoal(
+  goalId: string,
+  updates: Partial<FinancialGoal>
+): Promise<void> {
+  return updateDocument(COLLECTIONS.GOALS, goalId, updates);
+}
+
+export async function addGoalProgress(
+  goalId: string,
+  amount: number
+): Promise<void> {
+  const goal = await getGoal(goalId);
+  if (!goal) throw new Error('Goal not found');
+
+  const newCurrentAmount = goal.currentAmount + amount;
+  const isCompleted = newCurrentAmount >= goal.targetAmount;
+
+  await updateGoal(goalId, {
+    currentAmount: newCurrentAmount,
+    isCompleted,
+  });
+
+  console.log(`[Firestore] Added progress to goal ${goalId}:`, amount);
+}
+
+export async function deleteGoal(goalId: string): Promise<void> {
+  return deleteDocument(COLLECTIONS.GOALS, goalId);
+}
+
+/**
+ * Bill Reminders Operations
+ */
+
+export interface BillReminder {
+  id?: string;
+  userId: string;
+  name: string;
+  amount: number;
+  dueDate: Date;
+  category: string;
+  recurring: boolean;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  isPaid: boolean;
+  paidDate?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createBill(bill: Omit<BillReminder, 'id'>): Promise<string> {
+  return createDocument(COLLECTIONS.BILLS, bill);
+}
+
+export async function getBill(billId: string): Promise<BillReminder | null> {
+  return getDocument<BillReminder>(COLLECTIONS.BILLS, billId);
+}
+
+export async function getBillsByUser(userId: string): Promise<BillReminder[]> {
+  return queryDocuments<BillReminder>(COLLECTIONS.BILLS, [
+    where('userId', '==', userId),
+    orderBy('dueDate', 'asc'),
+  ]);
+}
+
+export async function updateBill(
+  billId: string,
+  updates: Partial<BillReminder>
+): Promise<void> {
+  return updateDocument(COLLECTIONS.BILLS, billId, updates);
+}
+
+export async function markBillAsPaid(billId: string): Promise<void> {
+  await updateBill(billId, {
+    isPaid: true,
+    paidDate: new Date(),
+  });
+  console.log(`[Firestore] Marked bill ${billId} as paid`);
+}
+
+export async function deleteBill(billId: string): Promise<void> {
+  return deleteDocument(COLLECTIONS.BILLS, billId);
+}
+
+/**
+ * Budget Operations
+ */
+
+export interface Budget {
+  id?: string;
+  userId: string;
+  name: string;
+  category: string;
+  limit: number;
+  spent: number;
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  startDate: Date;
+  endDate: Date;
+  alerts: boolean;
+  alertThreshold?: number; // percentage
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createBudget(budget: Omit<Budget, 'id'>): Promise<string> {
+  return createDocument(COLLECTIONS.BUDGETS, budget);
+}
+
+export async function getBudget(budgetId: string): Promise<Budget | null> {
+  return getDocument<Budget>(COLLECTIONS.BUDGETS, budgetId);
+}
+
+export async function getBudgetsByUser(userId: string): Promise<Budget[]> {
+  return queryDocuments<Budget>(COLLECTIONS.BUDGETS, [
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc'),
+  ]);
+}
+
+export async function updateBudget(
+  budgetId: string,
+  updates: Partial<Budget>
+): Promise<void> {
+  return updateDocument(COLLECTIONS.BUDGETS, budgetId, updates);
+}
+
+export async function addBudgetSpending(
+  budgetId: string,
+  amount: number
+): Promise<void> {
+  const budget = await getBudget(budgetId);
+  if (!budget) throw new Error('Budget not found');
+
+  const newSpent = budget.spent + amount;
+
+  await updateBudget(budgetId, {
+    spent: newSpent,
+  });
+
+  console.log(`[Firestore] Added spending to budget ${budgetId}:`, amount);
+}
+
+export async function deleteBudget(budgetId: string): Promise<void> {
+  return deleteDocument(COLLECTIONS.BUDGETS, budgetId);
+}

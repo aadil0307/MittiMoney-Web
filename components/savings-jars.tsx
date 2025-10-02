@@ -23,22 +23,20 @@ import {
   Plane,
   Edit,
   Trash2,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react"
-import { useOffline } from "./offline-manager"
-import { useOfflineStorage } from "@/hooks/use-local-storage"
+import { useAuth } from "@/contexts/auth-context"
+import {
+  createSavingsJar,
+  getSavingsJarsByUser,
+  updateSavingsJar,
+  addJarDeposit,
+  deleteSavingsJar,
+} from "@/lib/firebase/firestore"
+import type { SavingsJar } from "@/lib/offline/indexeddb"
 
-interface SavingsJar {
-  id: string
-  name: string
-  targetAmount: number
-  currentAmount: number
-  icon: string
-  color: string
-  streak: number
-  badges: string[]
-  createdAt: Date
-  targetDate?: Date
-}
+
 
 interface SavingsJarsProps {
   selectedLanguage: string
@@ -163,39 +161,33 @@ const languageTexts = {
 }
 
 export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
-  const { isOnline, addPendingSaving } = useOffline()
-  const { savings, setSavings } = useOfflineStorage()
+  const { user } = useAuth()
+  const userId = user?.uid || ""
 
-  const [jars, setJars] = useState<SavingsJar[]>([
-    {
-      id: "1",
-      name: "New Phone",
-      targetAmount: 25000,
-      currentAmount: 8500,
-      icon: "phone",
-      color: jarColors[1],
-      streak: 12,
-      badges: ["quickSaver"],
-      createdAt: new Date(),
-    },
-    {
-      id: "2",
-      name: "Emergency Fund",
-      targetAmount: 50000,
-      currentAmount: 32000,
-      icon: "medical",
-      color: jarColors[4],
-      streak: 25,
-      badges: ["streakBadge", "saverBadge"],
-      createdAt: new Date(),
-    },
-  ])
+  const [jars, setJars] = useState<SavingsJar[]>([])
+  const [loading, setLoading] = useState(true)
 
+  // Load jars from Firestore
   useEffect(() => {
-    if (savings && savings.length > 0) {
-      setJars(savings)
+    const loadJars = async () => {
+      if (!userId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const userJars = await getSavingsJarsByUser(userId)
+        setJars(userJars)
+      } catch (error) {
+        console.error("Error loading savings jars:", error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [savings])
+
+    loadJars()
+  }, [userId])
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showAddMoney, setShowAddMoney] = useState<string | null>(null)
@@ -210,71 +202,74 @@ export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
 
   const texts = languageTexts[selectedLanguage as keyof typeof languageTexts] || languageTexts.en
 
-  const createJar = () => {
-    if (newJar.name && newJar.targetAmount) {
-      const jar: SavingsJar = {
-        id: Date.now().toString(),
-        name: newJar.name,
-        targetAmount: Number.parseFloat(newJar.targetAmount),
-        currentAmount: 0,
-        icon: newJar.icon,
-        color: newJar.color,
-        streak: 0,
-        badges: [],
-        createdAt: new Date(),
-      }
-      const updatedJars = [...jars, jar]
-      setJars(updatedJars)
-      setSavings(updatedJars)
+  const createJar = async () => {
+    if (newJar.name && newJar.targetAmount && userId) {
+      try {
+        const jarData = {
+          userId,
+          name: newJar.name,
+          goal: newJar.name, // Using name as goal for now
+          targetAmount: Number.parseFloat(newJar.targetAmount),
+          currentAmount: 0,
+          color: newJar.color,
+          icon: newJar.icon,
+          progress: 0,
+          streak: { current: 0, best: 0 },
+          milestones: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          syncStatus: "synced" as const,
+        }
 
-      if (!isOnline) {
-        addPendingSaving({ action: "create", jar })
-      }
+        const jarId = await createSavingsJar(jarData)
+        
+        // Add to local state
+        const newJarWithId = { ...jarData, id: jarId }
+        setJars([...jars, newJarWithId])
 
-      setNewJar({ name: "", targetAmount: "", icon: "target", color: jarColors[0] })
-      setShowCreateForm(false)
+        setNewJar({ name: "", targetAmount: "", icon: "target", color: jarColors[0] })
+        setShowCreateForm(false)
+      } catch (error) {
+        console.error("Error creating jar:", error)
+      }
     }
   }
 
-  const addMoneyToJar = (jarId: string) => {
+  const addMoneyToJar = async (jarId: string) => {
     if (!addAmount) return
 
     const amount = Number.parseFloat(addAmount)
-    const updatedJars = jars.map((jar) => {
-      if (jar.id === jarId) {
-        const newAmount = jar.currentAmount + amount
-        const updatedJar = {
-          ...jar,
-          currentAmount: newAmount,
-          streak: jar.streak + 1,
+    
+    try {
+      // Update in Firestore
+      await addJarDeposit(jarId, amount)
+
+      // Update local state
+      const updatedJars = jars.map((jar) => {
+        if (jar.id === jarId) {
+          const newAmount = jar.currentAmount + amount
+          const newProgress = Math.min((newAmount / jar.targetAmount) * 100, 100)
+
+          if (newAmount >= jar.targetAmount && jar.currentAmount < jar.targetAmount) {
+            setCelebratingJar(jarId)
+            setTimeout(() => setCelebratingJar(null), 3000)
+          }
+
+          return {
+            ...jar,
+            currentAmount: newAmount,
+            progress: newProgress,
+          }
         }
+        return jar
+      })
 
-        if (newAmount >= jar.targetAmount && jar.currentAmount < jar.targetAmount) {
-          setCelebratingJar(jarId)
-          setTimeout(() => setCelebratingJar(null), 3000)
-        }
-
-        if (updatedJar.streak >= 7 && !updatedJar.badges.includes("streakBadge")) {
-          updatedJar.badges.push("streakBadge")
-        }
-        if (updatedJar.currentAmount >= updatedJar.targetAmount * 0.5 && !updatedJar.badges.includes("saverBadge")) {
-          updatedJar.badges.push("saverBadge")
-        }
-
-        return updatedJar
-      }
-      return jar
-    })
-
-    setJars(updatedJars)
-    setSavings(updatedJars)
-
-    if (!isOnline) {
-      addPendingSaving({ action: "add_money", jarId, amount })
+      setJars(updatedJars)
+      setAddAmount("")
+      setShowAddMoney(null)
+    } catch (error) {
+      console.error("Error adding money to jar:", error)
     }
-
-    setAddAmount("")
-    setShowAddMoney(null)
   }
 
   const getProgressPercentage = (jar: SavingsJar) => {
@@ -307,12 +302,34 @@ export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
     }
   }
 
+  const deleteJar = async (jarId: string) => {
+    if (!confirm(texts.delete + "?")) return
+
+    try {
+      await deleteSavingsJar(jarId)
+      setJars(jars.filter((j) => j.id !== jarId))
+    } catch (error) {
+      console.error("Error deleting jar:", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 p-4 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+          <p className="text-lg text-muted-foreground">Loading savings jars...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button onClick={onBack} variant="outline">
-            ← Back to Dashboard
+          <Button onClick={onBack} variant="outline" className="gap-2">
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Button>
           <div className="text-center">
             <h1 className="text-3xl font-bold text-primary">{texts.title}</h1>
@@ -354,12 +371,14 @@ export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
                         </div>
                         <div>
                           <CardTitle className="text-lg">{jar.name}</CardTitle>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Flame className="w-4 h-4 text-orange-500" />
-                            <span className="text-sm text-muted-foreground">
-                              {jar.streak} {texts.streak}
-                            </span>
-                          </div>
+                          {jar.streak && jar.streak.current > 0 && (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Flame className="w-4 h-4 text-orange-500" />
+                              <span className="text-sm text-muted-foreground">
+                                {jar.streak.current} {texts.streak}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {isCompleted && (
@@ -396,35 +415,17 @@ export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
                       </div>
                     </div>
 
-                    {jar.badges.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">{texts.badges}:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {jar.badges.map((badge, badgeIndex) => (
-                            <Badge key={badgeIndex} className={getBadgeColor(badge)}>
-                              {getBadgeIcon(badge)}
-                              <span className="ml-1 text-xs">
-                                {badge === "streakBadge"
-                                  ? texts.streakBadge
-                                  : badge === "saverBadge"
-                                    ? texts.saverBadge
-                                    : texts.quickSaver}
-                              </span>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     <div className="flex space-x-2 pt-2">
                       <Button onClick={() => setShowAddMoney(jar.id)} className="flex-1" disabled={isCompleted}>
                         <Plus className="w-4 h-4 mr-2" />
                         {texts.addMoney}
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-destructive bg-transparent">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => deleteJar(jar.id)}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>

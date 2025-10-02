@@ -27,26 +27,23 @@ import {
   Briefcase,
   Gift,
   Zap,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
+import { useAuth } from "@/contexts/auth-context"
+import {
+  createGoal as createGoalInFirestore,
+  getGoalsByUser,
+  updateGoal as updateGoalInFirestore,
+  addGoalProgress,
+  deleteGoal as deleteGoalFromFirestore,
+  type FinancialGoal as FirestoreGoal,
+} from "@/lib/firebase/firestore"
 
-interface FinancialGoal {
-  id: string
-  title: string
-  description: string
-  targetAmount: number
-  currentAmount: number
-  category: string
-  priority: "low" | "medium" | "high"
-  targetDate: Date
-  createdDate: Date
-  isCompleted: boolean
-  milestones: Milestone[]
-  monthlyContribution: number
-  autoContribute: boolean
-}
+type FinancialGoal = FirestoreGoal
 
 interface Milestone {
   id: string
@@ -166,7 +163,11 @@ const categoryIcons = {
 
 export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
   const t = translations[language as keyof typeof translations] || translations.english
+  const { user } = useAuth()
+  const userId = user?.uid || ""
+  
   const [goals, setGoals] = useState<FinancialGoal[]>([])
+  const [loading, setLoading] = useState(true)
   const [isAddingGoal, setIsAddingGoal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null)
   const [contributingGoal, setContributingGoal] = useState<FinancialGoal | null>(null)
@@ -182,9 +183,31 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
     autoContribute: false,
   })
 
-  // Mock data initialization
+  // Load goals from Firestore
   useEffect(() => {
-    const mockGoals: FinancialGoal[] = [
+    const loadGoals = async () => {
+      if (!userId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const userGoals = await getGoalsByUser(userId)
+        setGoals(userGoals)
+      } catch (error) {
+        console.error("Error loading goals:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadGoals()
+  }, [userId])
+
+  // Remove mock data
+  useEffect(() => {
+    const mockGoals_REMOVED: never[] = [
       {
         id: "1",
         title: "Emergency Fund",
@@ -267,7 +290,7 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
         ],
       },
     ]
-    setGoals(mockGoals)
+    // mockGoals removed - now loading from Firestore
   }, [])
 
   const activeGoals = goals.filter((goal) => !goal.isCompleted)

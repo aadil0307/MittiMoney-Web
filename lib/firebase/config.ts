@@ -160,6 +160,9 @@ export const COLLECTIONS = {
   SAVINGS_JARS: 'savings_jars',
   CHIT_FUNDS: 'chit_funds',
   NUDGES: 'nudges',
+  GOALS: 'financial_goals',
+  BILLS: 'bill_reminders',
+  BUDGETS: 'budgets',
 } as const;
 
 /**
