@@ -34,6 +34,14 @@ import { UPIPaymentGateway } from "@/components/upi-payment-gateway"
 import { useLanguage } from "@/contexts/language-context"
 import { useTransactions } from "@/hooks/useIndexedDB"
 import { useAuth } from "@/contexts/auth-context"
+import { 
+  getDebtsByUser, 
+  getSavingsJarsByUser, 
+  getGoalsByUser,
+  getTransactionsByUser 
+} from "@/lib/firebase/firestore"
+import type { Debt, SavingsJar } from "@/lib/offline/indexeddb"
+import type { FinancialGoal } from "@/lib/firebase/firestore"
 
 interface Transaction {
   id: string
@@ -48,7 +56,7 @@ interface Transaction {
 export function Dashboard() {
   // Get authenticated user ID from auth context
   const { user, signOut: handleSignOut, userProfile } = useAuth()
-  const userId = user?.uid || "demo-user-123"
+  const userId = user?.uid || ""
   
   const { 
     transactions: dbTransactions, 
@@ -64,17 +72,60 @@ export function Dashboard() {
   const [totalSavings, setTotalSavings] = useState(0)
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
   
+  // Load dynamic data from Firestore
+  const [debts, setDebts] = useState<Debt[]>([])
+  const [savingsJars, setSavingsJars] = useState<SavingsJar[]>([])
+  const [goals, setGoals] = useState<FinancialGoal[]>([])
+  const [totalDebt, setTotalDebt] = useState(0)
+  const [totalSavingsGoal, setTotalSavingsGoal] = useState(0)
+  
   // Load user profile data from Firestore
   useEffect(() => {
     if (userProfile && !isProfileLoaded) {
       console.log("[Dashboard] Loading user profile data:", userProfile)
       setCashInHand(userProfile.cashInHand || 0)
       setBankBalance(userProfile.bankBalance || 0)
+      setMonthlyIncome(userProfile.monthlyIncome || 0)
       setTotalSavings((userProfile.cashInHand || 0) + (userProfile.bankBalance || 0))
       setIsProfileLoaded(true)
       console.log("[Dashboard] Profile loaded - Cash:", userProfile.cashInHand, "Bank:", userProfile.bankBalance)
     }
   }, [userProfile, isProfileLoaded])
+  
+  // Load debts, savings jars, and goals from Firestore
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!userId) return
+
+      try {
+        // Load debts
+        const userDebts = await getDebtsByUser(userId)
+        setDebts(userDebts)
+        const debtTotal = userDebts.reduce((sum, debt) => sum + debt.remainingAmount, 0)
+        setTotalDebt(debtTotal)
+
+        // Load savings jars
+        const userJars = await getSavingsJarsByUser(userId)
+        setSavingsJars(userJars)
+        const jarsTotal = userJars.reduce((sum, jar) => sum + jar.currentAmount, 0)
+        
+        // Load goals
+        const userGoals = await getGoalsByUser(userId)
+        setGoals(userGoals)
+        const goalsTotal = userGoals
+          .filter(g => !g.isCompleted)
+          .reduce((sum, goal) => sum + goal.targetAmount, 0)
+        setTotalSavingsGoal(goalsTotal)
+
+        // Update total savings
+        setTotalSavings(jarsTotal + (userProfile?.cashInHand || 0) + (userProfile?.bankBalance || 0))
+      } catch (error) {
+        console.error("[Dashboard] Error loading data:", error)
+      }
+    }
+
+    loadDashboardData()
+  }, [userId, userProfile])
   
   // Calculate financial summaries from actual transactions
   useEffect(() => {

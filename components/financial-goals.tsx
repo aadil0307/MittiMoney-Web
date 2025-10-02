@@ -321,61 +321,88 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
     return "behindSchedule"
   }
 
-  const handleAddGoal = () => {
-    if (!newGoal.title || !newGoal.targetAmount || !newGoal.targetDate) return
+  const handleAddGoal = async () => {
+    if (!newGoal.title || !newGoal.targetAmount || !newGoal.targetDate || !userId) return
 
-    const goal: FinancialGoal = {
-      id: Date.now().toString(),
-      title: newGoal.title,
-      description: newGoal.description,
-      targetAmount: Number.parseFloat(newGoal.targetAmount),
-      currentAmount: 0,
-      category: newGoal.category,
-      priority: newGoal.priority,
-      targetDate: new Date(newGoal.targetDate),
-      createdDate: new Date(),
-      isCompleted: false,
-      monthlyContribution: Number.parseFloat(newGoal.monthlyContribution) || 0,
-      autoContribute: newGoal.autoContribute,
-      milestones: [],
+    try {
+      const goalData = {
+        userId,
+        title: newGoal.title,
+        description: newGoal.description,
+        targetAmount: Number.parseFloat(newGoal.targetAmount),
+        currentAmount: 0,
+        category: newGoal.category,
+        priority: newGoal.priority,
+        targetDate: new Date(newGoal.targetDate),
+        createdDate: new Date(),
+        isCompleted: false,
+        monthlyContribution: Number.parseFloat(newGoal.monthlyContribution) || 0,
+        autoContribute: newGoal.autoContribute,
+        milestones: [],
+      }
+
+      const goalId = await createGoalInFirestore(goalData)
+      
+      // Add to local state
+      const newGoalWithId = { ...goalData, id: goalId }
+      setGoals((prev) => [...prev, newGoalWithId])
+
+      setNewGoal({
+        title: "",
+        description: "",
+        targetAmount: "",
+        targetDate: "",
+        category: "",
+        priority: "medium",
+        monthlyContribution: "",
+        autoContribute: false,
+      })
+      setIsAddingGoal(false)
+    } catch (error) {
+      console.error("Error creating goal:", error)
     }
-
-    setGoals((prev) => [...prev, goal])
-    setNewGoal({
-      title: "",
-      description: "",
-      targetAmount: "",
-      targetDate: "",
-      category: "",
-      priority: "medium",
-      monthlyContribution: "",
-      autoContribute: false,
-    })
-    setIsAddingGoal(false)
   }
 
-  const handleContribute = () => {
+  const handleContribute = async () => {
     if (!contributingGoal || !contributionAmount) return
 
-    const amount = Number.parseFloat(contributionAmount)
-    setGoals((prev) =>
-      prev.map((goal) =>
-        goal.id === contributingGoal.id
-          ? {
-              ...goal,
-              currentAmount: Math.min(goal.currentAmount + amount, goal.targetAmount),
-              isCompleted: goal.currentAmount + amount >= goal.targetAmount,
-            }
-          : goal,
-      ),
-    )
+    try {
+      const amount = Number.parseFloat(contributionAmount)
+      
+      // Update in Firestore
+      await addGoalProgress(contributingGoal.id!, amount)
 
-    setContributingGoal(null)
-    setContributionAmount("")
+      // Update local state
+      setGoals((prev) =>
+        prev.map((goal) =>
+          goal.id === contributingGoal.id
+            ? {
+                ...goal,
+                currentAmount: Math.min(goal.currentAmount + amount, goal.targetAmount),
+                isCompleted: goal.currentAmount + amount >= goal.targetAmount,
+              }
+            : goal,
+        ),
+      )
+
+      setContributingGoal(null)
+      setContributionAmount("")
+    } catch (error) {
+      console.error("Error adding contribution:", error)
+    }
   }
 
-  const handleDeleteGoal = (goalId: string) => {
-    setGoals((prev) => prev.filter((goal) => goal.id !== goalId))
+  const handleDeleteGoal = async (goalId: string | undefined) => {
+    if (!goalId) return
+    
+    if (!confirm("Are you sure you want to delete this goal?")) return
+
+    try {
+      await deleteGoalFromFirestore(goalId)
+      setGoals((prev) => prev.filter((goal) => goal.id !== goalId))
+    } catch (error) {
+      console.error("Error deleting goal:", error)
+    }
   }
 
   const GoalCard = ({ goal }: { goal: FinancialGoal }) => {
@@ -561,7 +588,7 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
             )}
 
             {/* Milestones */}
-            {goal.milestones.length > 0 && (
+            {goal.milestones && goal.milestones.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-foreground">{t.milestones}</h4>
                 <div className="space-y-1">
@@ -585,7 +612,7 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
             )}
 
             {/* Auto Contribution Info */}
-            {goal.autoContribute && goal.monthlyContribution > 0 && (
+            {goal.autoContribute && goal.monthlyContribution && goal.monthlyContribution > 0 && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded">
                 <Zap className="w-3 h-3 text-accent" />
                 <span>Auto-contributing ₹{goal.monthlyContribution.toLocaleString()} monthly</span>
@@ -597,14 +624,25 @@ export function FinancialGoals({ language, onBack }: FinancialGoalsProps) {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 p-4 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+          <p className="text-lg text-muted-foreground">Loading financial goals...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={onBack} variant="outline">
-              ← Back
+            <Button onClick={onBack} variant="outline" className="gap-2">
+              <ArrowLeft className="w-4 h-4" /> Back
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-primary flex items-center gap-2">

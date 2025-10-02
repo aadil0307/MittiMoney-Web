@@ -13,8 +13,16 @@ export type User = {
   profileImage?: string;
   preferredLanguage: 'hi' | 'mr' | 'ta' | 'en';
   incomeSource: string;
+  monthlyIncome?: number;
   cashInHand: number;
   bankBalance: number;
+  hasDebts?: boolean;
+  totalDebtAmount?: number;
+  hasLoans?: boolean;
+  totalLoanAmount?: number;
+  hasCreditCards?: boolean;
+  creditCardDebt?: number;
+  savingsGoal?: string;
   voiceGuidanceEnabled: boolean;
   notificationsEnabled: boolean;
   createdAt: Date;

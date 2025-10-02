@@ -428,19 +428,30 @@ export function UserOnboarding({ onComplete }: UserOnboardingProps) {
         displayName: formData.displayName,
       })
 
-      // Create user profile in Firestore with the correct ID structure
+      // Create user profile in Firestore with all collected data
       const userId = user.uid
       await createUser({
         uid: userId,
-        phoneNumber: user.phoneNumber || "",
+        phoneNumber: formData.phoneNumber || user.phoneNumber || "",
         displayName: formData.displayName,
         incomeSource: formData.incomeSource,
+        monthlyIncome: formData.monthlyIncome,
         cashInHand: formData.cashInHand,
         bankBalance: formData.bankBalance,
+        hasDebts: formData.hasDebts,
+        totalDebtAmount: formData.totalDebtAmount,
+        hasLoans: formData.hasLoans,
+        totalLoanAmount: formData.totalLoanAmount,
+        hasCreditCards: formData.hasCreditCards,
+        creditCardDebt: formData.creditCardDebt,
+        savingsGoal: formData.savingsGoal,
         preferredLanguage: formData.preferredLanguage as "hi" | "mr" | "ta" | "en",
         onboardingCompleted: true,
+        voiceGuidanceEnabled: true,
+        notificationsEnabled: true,
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastLoginAt: new Date(),
       } as any)
 
       console.log("[Onboarding] Profile saved successfully")
