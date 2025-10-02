@@ -334,11 +334,6 @@ export function SavingsJars({ selectedLanguage, onBack }: SavingsJarsProps) {
           <div className="text-center">
             <h1 className="text-3xl font-bold text-primary">{texts.title}</h1>
             <p className="text-muted-foreground">{texts.subtitle}</p>
-            {!isOnline && (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 mt-2">
-                ऑफलाइन मोड - डेटा स्थानीय रूप से सहेजा जा रहा है
-              </Badge>
-            )}
           </div>
           <Button onClick={() => setShowCreateForm(true)} className="bg-accent hover:bg-accent/90">
             <Plus className="w-4 h-4 mr-2" />

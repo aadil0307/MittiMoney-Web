@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import twilio from "twilio"
+import { generateAccessToken, generateRefreshToken, setAuthCookies } from "@/lib/jwt"
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,11 +61,47 @@ export async function POST(request: NextRequest) {
     console.log("[v0] OTP verification result:", verificationCheck.status)
 
     if (verificationCheck.status === "approved") {
-      return NextResponse.json({
-        success: true,
-        verified: true,
-        message: "OTP verified successfully",
-      })
+      // OTP verified successfully - now generate JWT tokens
+      console.log("[v0] Generating JWT tokens for user:", formattedPhone)
+      
+      try {
+        // Generate userId from phone number (you can modify this logic)
+        const userId = formattedPhone.replace("+", "")
+        
+        // Generate JWT tokens
+        const accessToken = await generateAccessToken({
+          userId,
+          phoneNumber: formattedPhone,
+          role: "user",
+        })
+
+        const refreshToken = await generateRefreshToken({
+          userId,
+          phoneNumber: formattedPhone,
+          role: "user",
+        })
+
+        // Set tokens in HTTP-only cookies
+        await setAuthCookies(accessToken, refreshToken)
+
+        console.log("[v0] JWT tokens generated and set in cookies for:", formattedPhone)
+
+        return NextResponse.json({
+          success: true,
+          verified: true,
+          message: "OTP verified successfully",
+          userId,
+        })
+      } catch (jwtError: any) {
+        console.error("[v0] JWT generation error:", jwtError)
+        // Return success for OTP verification even if JWT fails
+        return NextResponse.json({
+          success: true,
+          verified: true,
+          message: "OTP verified successfully (JWT generation failed)",
+          warning: "JWT tokens could not be generated",
+        })
+      }
     } else {
       return NextResponse.json(
         {

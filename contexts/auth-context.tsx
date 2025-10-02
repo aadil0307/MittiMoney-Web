@@ -2,7 +2,7 @@
 
 /**
  * Authentication Context for MittiMoney
- * Uses Twilio for OTP verification + Firebase for user management
+ * Uses Twilio for OTP verification + Firebase for user management + JWT tokens
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -15,6 +15,7 @@ import {
 import { getAuthInstance, isFirebaseReady } from '@/lib/firebase/config';
 import { getUser, createUser } from '@/lib/firebase/firestore';
 import type { User } from '@/lib/offline/indexeddb';
+import { logout as jwtLogout } from '@/lib/auth/jwt-client';
 
 interface AuthContextType {
   // Current user state
@@ -217,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * Sign out user
+   * Sign out user (clears both Firebase session and JWT tokens)
    */
   const signOut = async (): Promise<void> => {
     if (!isFirebaseReady()) {
@@ -230,6 +231,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       console.log('[Auth] Signing out user');
+      
+      // Clear JWT tokens first
+      try {
+        await jwtLogout();
+        console.log('[Auth] JWT tokens cleared');
+      } catch (jwtError) {
+        console.warn('[Auth] JWT logout failed:', jwtError);
+        // Continue with Firebase logout even if JWT fails
+      }
+      
+      // Then sign out from Firebase
       await firebaseSignOut(auth);
       setUser(null);
       setUserProfile(null);
